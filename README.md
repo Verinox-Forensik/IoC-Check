@@ -1,4 +1,4 @@
-# Verinox Forensik – Forensik Tool
+# Verinox Forensik – IoC Check
 
 A secure, privacy-first desktop application for batch-checking IPs and domains against the [VirusTotal API](https://www.virustotal.com/).  
 Built with Python + tkinter. Runs on **macOS, Windows and Linux** without any hardcoded paths.
