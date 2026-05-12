@@ -104,4 +104,4 @@ MIT License – see [LICENSE](LICENSE) for details.
 
 ---
 
-*Developed by Verinox – Forensik Tool v2.0*
+*Developed by Verinox Forensik GmbH
