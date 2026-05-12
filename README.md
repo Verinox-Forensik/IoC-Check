@@ -20,8 +20,8 @@ Built with Python + tkinter. Runs on **macOS, Windows and Linux** without any ha
 ## Installation
 
 ```bash
-git clone https://github.com/your-username/vt-analyzer.git
-cd vt-analyzer
+git clone https://github.com/Verinox-Forensik/IoC-Check.git
+cd IoC-Check
 pip install -r requirements.txt
 python main.py
 ```
