@@ -1,0 +1,714 @@
+================================================================================
+  VERINOX FORENSIK – FORENSIK TOOL
+  Benutzerhandbuch  |  Version 2.0
+================================================================================
+
+INHALT
+──────
+   1. Überblick
+   2. Systemanforderungen
+   3. Installation
+   4. Anwendung starten
+   5. Bedienung Schritt für Schritt
+   6. Unterstützte Dateiformate
+   7. Sicherheitsmodell – alle 11 aktiven Schutzmaßnahmen
+      7.1  Netzwerk-Allowlist
+      7.2  API-Key-Speicherung (OS-Schlüsselbund)
+      7.3  TLS-Zertifikat-Pinning (Feature 1)
+      7.4  Proxy-Warnung (Feature 2)
+      7.5  Session-Modus (Feature 3)
+      7.6  Clipboard-Guard (Feature 4)
+      7.7  SHA-256 Datei-Hash im Export (Feature 5)
+      7.8  Auditlog mit Hash-Chain (Feature 6)
+      7.9  Key-Rotations-Erinnerung (Feature 7)
+      7.10 XLSM-Makro-Warnung (Feature 8)
+      7.11 Export-Verschlüsselung (Feature 9)
+      7.12 Inaktivitäts-Timeout (Feature 10)
+      7.13 Was wird zu VirusTotal gesendet?
+      7.14 Kein Telemetrie, keine Drittanbieter
+   8. Rate-Limit und Laufzeit
+   9. Ergebnisse verstehen
+  10. Export (CSV und PDF)
+  11. Fehlerbehebung
+  12. Erweiterung der Anwendung
+
+
+================================================================================
+1. ÜBERBLICK
+================================================================================
+
+Verinox Forensik – Forensik Tool liest beliebige Dateien ein, extrahiert
+automatisch alle IP-Adressen und Domains/URLs per Regex und prüft diese
+gegen die VirusTotal API v3.
+
+Die Ergebnisse werden farbkodiert in der Benutzeroberfläche angezeigt
+und können verschlüsselt als CSV (AES-256) oder PDF (Passwortschutz)
+exportiert werden.
+
+Kernfunktionen:
+  • Unterstützung für txt, csv, xlsx, xlsm, json, ndjson, log, xml, html
+  • Extraktion von IPv4-Adressen und Domains/URLs per Regex
+  • Prominente Extraktions-Info-Box: zeigt Anzahl gefundener IPs und Domains
+    vor dem Scan-Start als deutliche Übersicht
+  • Automatische Rate-Limit-Einhaltung (konfigurierbar)
+  • Oberfläche auf Deutsch und Englisch umschaltbar (🌐-Button)
+  • 11 aktive Sicherheitsmaßnahmen (siehe Abschnitt 7)
+  • Export mit optionalem Passwortschutz / AES-256-Verschlüsselung
+
+
+================================================================================
+2. SYSTEMANFORDERUNGEN
+================================================================================
+
+  • Python 3.11 oder neuer
+  • Betriebssystem: Windows 10+, macOS 12+, Linux (mit Tk-Support)
+  • Internetverbindung für VirusTotal-API-Abfragen
+  • VirusTotal-Account und API-Key (kostenlos unter virustotal.com)
+
+
+================================================================================
+3. INSTALLATION
+================================================================================
+
+Schritt 1: In das Programmverzeichnis wechseln
+
+    cd vt_analyzer/
+
+Schritt 2: Abhängigkeiten installieren
+
+    pip install -r requirements.txt
+
+  Installierte Pakete:
+    requests   – HTTP-Kommunikation mit der VirusTotal API
+    openpyxl   – Lesen von Excel-Dateien (.xlsx, .xlsm)
+    reportlab  – PDF-Erstellung
+    keyring    – Sicherer API-Key-Speicher im OS-Schlüsselbund
+    pypdf      – Passwortschutz für PDF-Exporte
+    pyzipper   – AES-256-Verschlüsselung für CSV-Exporte (ZIP)
+
+  Hinweis: Wenn "keyring" nicht verfügbar ist, wird der API-Key in
+  ~/.vt_analyzer_key.json mit Berechtigung 600 gespeichert.
+  Wenn "pyzipper" fehlt, wird CSV unverschlüsselt gespeichert.
+  Wenn "pypdf" fehlt, wird PDF ohne Passwortschutz gespeichert.
+
+
+================================================================================
+4. ANWENDUNG STARTEN
+================================================================================
+
+    python3 main.py
+
+Die Anwendung öffnet sich auf Deutsch. Beim ersten Start wird das
+TLS-Zertifikat von VirusTotal gespeichert (TOFU – einmalige Bestätigung).
+
+
+================================================================================
+5. BEDIENUNG SCHRITT FÜR SCHRITT
+================================================================================
+
+──────────────────────────────────────────────────────────────────────────────
+Schritt 1: Sprache wählen (optional)
+──────────────────────────────────────────────────────────────────────────────
+
+  Klicken Sie auf "🌐 English" oben rechts im Konfigurationsbereich,
+  um die Oberfläche auf Englisch umzuschalten. Alle Texte, Tabs,
+  Meldungen und Log-Ausgaben wechseln sofort – ohne Neustart.
+
+──────────────────────────────────────────────────────────────────────────────
+Schritt 2: API-Key eingeben
+──────────────────────────────────────────────────────────────────────────────
+
+  Tragen Sie Ihren VirusTotal API-Key in das Feld "VirusTotal API-Key" ein.
+
+  • "👁 Anzeigen": zeigt den Key im Klartext (umschaltbar)
+  • Der Key wird nach dem Verlassen des Feldes im OS-Schlüsselbund
+    gespeichert und beim nächsten Start automatisch geladen
+  • Checkbox "Key nicht speichern (nur diese Sitzung)": Key bleibt
+    ausschließlich im RAM – wird beim Beenden unwiederbringlich gelöscht
+  • Wenn der Key älter als 90 Tage ist, erscheint beim Start eine
+    Rotations-Erinnerung mit Link zu virustotal.com
+
+  Wo finden Sie Ihren API-Key?
+  → virustotal.com → Anmelden → Profil → API Key
+
+──────────────────────────────────────────────────────────────────────────────
+Schritt 3: Eingabedatei auswählen
+──────────────────────────────────────────────────────────────────────────────
+
+  Klicken Sie auf "📂 Durchsuchen" und wählen Sie die Datei aus.
+
+  Unterstützte Formate: txt, log, csv, tsv, xlsx, xlsm, json, ndjson, xml, html
+
+  Hinweis bei .xlsm-Dateien:
+    Die Anwendung zeigt vor dem Einlesen eine Warnung, dass die Datei
+    Makros enthält. Makros werden NICHT ausgeführt. Der Nutzer muss
+    das Einlesen explizit bestätigen.
+
+──────────────────────────────────────────────────────────────────────────────
+Schritt 4: Optionen konfigurieren
+──────────────────────────────────────────────────────────────────────────────
+
+  [x] IP-Adressen scannen
+      Extrahiert öffentliche IPv4-Adressen. Private Bereiche
+      (10.x, 192.168.x, 172.16-31.x, 127.x) werden ausgeschlossen.
+
+  [x] Domains / URLs scannen
+      Extrahiert Domains und URLs (inklusive aus http/https-Links).
+
+  Rate-Limit: [4] Anfragen/Minute
+      Kostenloser Account: 4. Premium-Account: höheren Wert eintragen.
+
+  Inaktivitäts-Timeout: [15] Minuten
+      Nach der angegebenen Inaktivitätsdauer wird der API-Key aus dem
+      Eingabefeld entfernt. Wert 0 = Timeout deaktiviert.
+
+──────────────────────────────────────────────────────────────────────────────
+Schritt 5: Scan starten
+──────────────────────────────────────────────────────────────────────────────
+
+  Klicken Sie auf "▶ Scan starten".
+
+  Vor dem Scan führt die Anwendung automatisch folgende Prüfungen durch:
+    1. XLSM-Makro-Warnung (falls .xlsm-Datei)
+    2. Proxy-Prüfung (Warnung falls Proxy aktiv)
+    3. TLS-Zertifikat-Pinning (Warnung falls Zertifikat geändert)
+
+  Nach erfolgreicher Prüfung erscheint die Extraktions-Info-Box:
+
+    ┌──────────────────────────────────────────────────────────┐
+    │  📊  Extraktion abgeschlossen                            │
+    │  IP-Adressen gefunden:    12                             │
+    │  Domains / URLs gefunden: 47     Gesamt: 59 Einträge     │
+    └──────────────────────────────────────────────────────────┘
+
+  Darunter läuft der Fortschrittsbalken mit ETA und Live-Log.
+  Mit "■ Stopp" kann der Scan jederzeit abgebrochen werden.
+
+──────────────────────────────────────────────────────────────────────────────
+Schritt 6: Ergebnisse auswerten
+──────────────────────────────────────────────────────────────────────────────
+
+  Nach Abschluss wechselt die Ansicht automatisch in den Tab "Ergebnisse".
+
+  Tabellenspalten:
+    Ziel         – IP-Adresse oder Domain
+    Typ          – "ip" oder "domain"
+    Verdict      – MALICIOUS / SUSPICIOUS / CLEAN / ERROR  (farbkodiert)
+    Mal.         – Anzahl Engines mit "malicious"
+    Susp.        – Anzahl Engines mit "suspicious"
+    Harm.        – Anzahl Engines mit "harmless"
+    Engines      – Gesamtzahl befragter Engines
+    Letzte Anal. – Datum der letzten VirusTotal-Analyse
+
+  Interaktion:
+    • Doppelklick auf eine Zeile: vollständige Detailansicht
+      (Registrar, DNS-Records, SSL-Zertifikat, ASN, Land, …)
+    • Spaltenköpfe anklicken: auf-/absteigend sortieren
+    • Filter-Dropdown: nach Verdict filtern
+    • Suchfeld: nach Zielname filtern
+
+──────────────────────────────────────────────────────────────────────────────
+Schritt 7: Netzwerk-Log prüfen
+──────────────────────────────────────────────────────────────────────────────
+
+  Der Tab "Netzwerk-Log" zeigt jeden HTTP-Request live:
+
+    [REQUEST]   GET https://www.virustotal.com/api/v3/domains/example.com
+    [RESPONSE]  HTTP 200 ← https://www.virustotal.com/...
+    [BLOCKED]   BLOCKIERT: Anfrage an andere Domain verweigert
+
+  Der API-Key erscheint in diesem Log niemals im Klartext.
+
+──────────────────────────────────────────────────────────────────────────────
+Schritt 8: Sicherheits-Panel prüfen
+──────────────────────────────────────────────────────────────────────────────
+
+  Der Tab "🔒 Sicherheit" zeigt:
+    • Alle aktiven Sicherheitsgarantien mit Status-Icon
+    • Aktuellen Speicherort des API-Keys
+    • Auditlog-Status: Anzahl Einträge und Integrität der Hash-Chain
+    • Datenfluss-Diagramm
+
+──────────────────────────────────────────────────────────────────────────────
+Schritt 9: Ergebnisse exportieren
+──────────────────────────────────────────────────────────────────────────────
+
+  Im Tab "Ergebnisse" oben rechts: ⬇ CSV  und  ⬇ PDF
+
+  Bei jedem Export erscheint ein Passwort-Dialog:
+    • Passwort leer lassen → unverschlüsselter Export
+    • Passwort eingeben    → verschlüsselter Export (AES-256 / PDF-Passwort)
+    • "Abbrechen"          → Export wird nicht durchgeführt
+
+  Beide Exporte enthalten als Kommentar-Header:
+    • Dateiname der analysierten Eingabedatei
+    • SHA-256-Hash der Eingabedatei (Audit-Trail)
+    • Zeitstempel der Erstellung
+
+
+================================================================================
+6. UNTERSTÜTZTE DATEIFORMATE
+================================================================================
+
+  Format          Verarbeitung
+  ──────────────────────────────────────────────────────────────────────────
+  .txt / .log     Gesamter Inhalt als Text gescannt
+  .csv / .tsv     Alle Zellen als Text gescannt
+  .json           Gesamter Dateiinhalt als Text
+  .ndjson         Alle Zeilen als Text (z. B. Apple Privacy Report)
+  .xlsx           Alle Zellen aller Tabellenblätter (benötigt openpyxl)
+  .xlsm           Wie .xlsx – Makro-Warnung erscheint vorab
+  .xml / .html    Gesamter Inhalt als Text
+  Andere          Versuch als UTF-8-Text
+
+  Regex-Muster:
+    IPv4:     Vollständige IPv4-Adressen, private Bereiche ausgeschlossen
+    Domains:  Gültige Domainnamen (min. 2-stellige TLD)
+    URLs:     http:// und https:// – Domain wird extrahiert
+
+
+================================================================================
+7. SICHERHEITSMODELL – ALLE 11 AKTIVEN SCHUTZMASNAHMEN
+================================================================================
+
+Diese Anwendung wurde mit dem Ziel entwickelt, maximale Transparenz
+über den Umgang mit Ihren Daten und dem API-Key zu bieten.
+Jede Schutzmaßnahme ist im Quellcode auditierbar.
+
+──────────────────────────────────────────────────────────────────────────────
+7.1  NETZWERK-ALLOWLIST  (security/secure_session.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Technische Durchsetzung: Die Klasse SecureSession überschreibt die
+  HTTP-Basisklasse und prüft VOR jeder Anfrage den Zielhostnamen gegen:
+
+    ALLOWED_HOSTS = {"www.virustotal.com"}
+
+  Jede Verbindung zu einer anderen Domain wird mit einer
+  SecurityViolation-Exception blockiert und rot im Netzwerk-Log markiert.
+  Dies gilt auch für Fehler im eigenen Code oder manipulierten Quellcode.
+
+──────────────────────────────────────────────────────────────────────────────
+7.2  API-KEY-SPEICHERUNG  (security/keystore.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Priorität 1 – OS-Schlüsselbund (bevorzugt, verschlüsselt):
+    macOS:   Keychain Access
+    Windows: Windows Credential Manager
+    Linux:   Secret Service (GNOME Keyring / KWallet)
+
+  Priorität 2 – Lokale Datei (Fallback):
+    Pfad: ~/.vt_analyzer_key.json
+    Dateiberechtigungen: 600 (nur lesbar für den eigenen Benutzer)
+
+  Der gespeicherte Wert enthält zusätzlich den Speicherzeitpunkt
+  für die Rotations-Erinnerung (7.9).
+
+  Der API-Key erscheint in der gesamten Anwendung nur maskiert:
+    ••••••••••••••••XXXX  (nur die letzten 4 Zeichen sichtbar)
+
+──────────────────────────────────────────────────────────────────────────────
+7.3  FEATURE 1: TLS-ZERTIFIKAT-PINNING  (security/cert_pinning.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Modell: Trust On First Use (TOFU) – ähnlich wie SSH known_hosts.
+
+  Ablauf:
+    1. Beim ersten Scan-Start wird eine SSL-Verbindung zu
+       www.virustotal.com aufgebaut und der SHA-256-Fingerprint
+       des DER-codierten Zertifikats berechnet.
+    2. Der Fingerprint wird in ~/.vt_analyzer_pins.json gespeichert
+       (Dateiberechtigung 600).
+    3. Bei jedem weiteren Scan wird der aktuelle Fingerprint gegen
+       den gespeicherten geprüft.
+    4. Bei Übereinstimmung: "✅ Zertifikat verifiziert" im Log.
+    5. Bei Abweichung: Warndialog mit altem und neuem Fingerprint.
+       Der Nutzer entscheidet, ob das neue Zertifikat akzeptiert wird.
+
+  Mögliche Ursachen für eine Abweichung:
+    • Reguläre Zertifikatserneuerung durch VirusTotal
+    • Man-in-the-Middle-Angriff (MITM)
+    • Unternehmens-Proxy mit TLS-Inspektion (siehe auch 7.4)
+
+  Im Zweifelsfall: Scan abbrechen und IT-Sicherheit kontaktieren.
+
+──────────────────────────────────────────────────────────────────────────────
+7.4  FEATURE 2: PROXY-WARNUNG  (security/proxy_check.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Vor jedem Scan prüft die Anwendung:
+    • Umgebungsvariablen: HTTPS_PROXY, HTTP_PROXY, ALL_PROXY (groß/klein)
+    • System-Proxy-Einstellungen (macOS/Windows Systemsteuerung, PAC-Dateien)
+
+  Wenn ein Proxy gefunden wird, erscheint ein Dialog:
+    ┌──────────────────────────────────────────────────────────┐
+    │  ⚠️  HTTP-Proxy erkannt                                  │
+    │  proxy.firma.local:8080                                  │
+    │                                                          │
+    │  Ihr API-Key wird über diesen Proxy übermittelt.         │
+    │  Vertrauen Sie dem Proxy-Betreiber?                      │
+    │                           [Fortfahren]  [Abbrechen]      │
+    └──────────────────────────────────────────────────────────┘
+
+  Hinweis: Ein Corporate-Proxy mit TLS-Inspektion kann auch das
+  gespeicherte Zertifikat (7.3) ersetzen – beide Warnungen ergänzen
+  sich gegenseitig.
+
+──────────────────────────────────────────────────────────────────────────────
+7.5  FEATURE 3: SESSION-MODUS  (gui/panels/settings_panel.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Checkbox: "Key nicht speichern (nur diese Sitzung)"
+
+  Wenn aktiviert:
+    • Der API-Key wird ausschließlich im RAM gehalten
+    • Kein Schreibzugriff auf OS-Schlüsselbund oder Datei
+    • Beim Beenden der Anwendung ist der Key unwiederbringlich gelöscht
+
+  Empfohlen für:
+    • Geteilte Arbeitsplätze / Shared Workstations
+    • Höchste Datenschutzanforderungen
+    • Temporäre Analysen mit fremdem Key
+
+──────────────────────────────────────────────────────────────────────────────
+7.6  FEATURE 4: CLIPBOARD-GUARD  (security/clipboard_guard.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Nach dem Verlassen des API-Key-Eingabefelds startet automatisch
+  ein 30-Sekunden-Countdown. Nach Ablauf wird die Zwischenablage
+  geleert, damit der Key nicht aus der Clipboard-History ausgelesen
+  werden kann.
+
+  Bestätigung im Log:
+    🔒 Zwischenablage automatisch geleert.
+
+  Der Countdown wird zurückgesetzt, wenn das Key-Feld erneut
+  bearbeitet wird.
+
+──────────────────────────────────────────────────────────────────────────────
+7.7  FEATURE 5: SHA-256 DATEI-HASH IM EXPORT  (core/extractor.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Vor dem Scan berechnet die Anwendung den SHA-256-Hash der
+  Eingabedatei (chunk-weise, speichereffizient).
+
+  Der Hash wird:
+    • Im Fortschritts-Log angezeigt (erste 16 Zeichen sichtbar)
+    • Als Kommentar-Header in CSV-Exporte eingefügt
+    • In den PDF-Export-Header aufgenommen
+    • Im Auditlog gespeichert (7.8)
+
+  Zweck: Rückverfolgbarkeit – welche exakte Dateiversion wurde
+  analysiert? Relevant für Incident-Response und Compliance.
+
+──────────────────────────────────────────────────────────────────────────────
+7.8  FEATURE 6: AUDITLOG MIT HASH-CHAIN  (security/audit_log.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Jeder abgeschlossene Scan wird in einem append-only Log protokolliert:
+    Pfad: ~/.vt_analyzer_audit.jsonl
+    Format: JSONL (eine JSON-Zeile pro Eintrag)
+    Berechtigung: 600
+
+  Jeder Eintrag enthält:
+    timestamp      Datum und Uhrzeit (UTC)
+    file_name      Dateiname der Eingabedatei
+    file_sha256    SHA-256-Hash der Eingabedatei
+    ips_found      Anzahl gefundener IP-Adressen
+    domains_found  Anzahl gefundener Domains
+    verdicts       Zusammenfassung {MALICIOUS: n, CLEAN: n, …}
+    prev_hash      SHA-256-Hash des vorherigen Eintrags
+    entry_hash     SHA-256-Hash dieses Eintrags (inkl. prev_hash)
+
+  Hash-Chain-Prinzip:
+    Jeder Eintrag enthält den Hash des Vorgängers. Wird ein Eintrag
+    nachträglich geändert oder gelöscht, ist die Kette gebrochen.
+    Die Integrität wird beim Start geprüft und im Security-Panel
+    angezeigt: "✅ N Einträge – Hash-Chain intakt" oder "❌ Fehler".
+
+  Der API-Key wird NIEMALS im Auditlog gespeichert.
+
+──────────────────────────────────────────────────────────────────────────────
+7.9  FEATURE 7: KEY-ROTATIONS-ERINNERUNG  (security/keystore.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Beim Laden des gespeicherten Keys wird das Speicherdatum geprüft.
+  Ist der Key älter als 90 Tage, erscheint beim Programmstart:
+
+    ┌──────────────────────────────────────────────────────────┐
+    │  API-Key-Rotation empfohlen                              │
+    │  Ihr API-Key ist 97 Tage alt.                            │
+    │  Best Practice: Credentials alle 90 Tage rotieren.      │
+    │  virustotal.com → Profil → API Key                       │
+    └──────────────────────────────────────────────────────────┘
+
+  Hintergrund: Regelmäßige Rotation begrenzt den Schaden bei
+  einem unbemerkt kompromittierten Key.
+
+──────────────────────────────────────────────────────────────────────────────
+7.10 FEATURE 8: XLSM-MAKRO-WARNUNG  (gui/app.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Vor dem Einlesen einer .xlsm-Datei erscheint eine Warnung:
+    • Makros werden von der Anwendung NICHT ausgeführt
+    • Die Datei kann jedoch manipulierten Text-Inhalt enthalten
+      (z. B. eingebettete URLs zu Malware-Domains)
+    • Der Nutzer muss das Einlesen explizit bestätigen
+
+  Hintergrund: .xlsm-Dateien sind ein verbreitetes Trägerformat
+  für Phishing-Inhalte und sind in forensischen Analysen mit
+  erhöhter Sorgfalt zu behandeln.
+
+──────────────────────────────────────────────────────────────────────────────
+7.11 FEATURE 9: EXPORT-VERSCHLÜSSELUNG  (export/)
+──────────────────────────────────────────────────────────────────────────────
+
+  Bei jedem Export (CSV und PDF) erscheint ein Passwort-Dialog:
+
+    ┌──────────────────────────────────────────────────────────┐
+    │  Export-Verschlüsselung (optional)                       │
+    │  Passwort:          [__________]                         │
+    │  Passwort bestätigen: [__________]                       │
+    │  (leer lassen = keine Verschlüsselung)                   │
+    │                           [OK]  [Abbrechen]              │
+    └──────────────────────────────────────────────────────────┘
+
+  CSV mit Passwort:
+    → AES-256-verschlüsselte ZIP-Datei (WinZip AES-Standard)
+    → kompatibel mit 7-Zip, WinZip, macOS Archiv-Dienstprogramm
+    → benötigt pyzipper (pip install pyzipper)
+
+  PDF mit Passwort:
+    → Standard-PDF-Passwortschutz (AES-128, RC4-kompatibel)
+    → öffenbar mit jedem PDF-Reader (Adobe, Foxit, macOS Vorschau)
+    → benötigt pypdf (pip install pypdf)
+
+  Ohne Passwort: normaler unverschlüsselter Export.
+  Der API-Key ist in keinem Export enthalten.
+
+──────────────────────────────────────────────────────────────────────────────
+7.12 FEATURE 10: INAKTIVITÄTS-TIMEOUT  (gui/app.py)
+──────────────────────────────────────────────────────────────────────────────
+
+  Einstellbar in der Konfiguration: "Inaktivitäts-Timeout: [15] Minuten"
+  (0 = deaktiviert)
+
+  Auslöser: Maus- und Tastaturaktivität im Hauptfenster setzt den
+  Timer zurück. Bleibt diese aus, erscheint nach Ablauf:
+
+    ┌──────────────────────────────────────────────────────────┐
+    │  Sitzung gesperrt                                        │
+    │  Inaktivitäts-Timeout erreicht.                          │
+    │  Der API-Key wurde aus dem Eingabefeld entfernt.         │
+    │  Bitte Key erneut eingeben, um fortzufahren.             │
+    └──────────────────────────────────────────────────────────┘
+
+  Hinweis: Läuft ein Scan, wird der Key aus dem Eingabefeld entfernt,
+  der Scan selbst läuft ungestört weiter (der Key ist im Scanner-Thread).
+
+  Empfohlen: 10–15 Minuten bei sensitiven Umgebungen.
+
+──────────────────────────────────────────────────────────────────────────────
+7.13 WAS WIRD ZU VIRUSTOTAL GESENDET?
+──────────────────────────────────────────────────────────────────────────────
+
+  Pro Abfrage genau eine HTTP-Anfrage:
+    GET https://www.virustotal.com/api/v3/domains/<domain>
+    GET https://www.virustotal.com/api/v3/ip_addresses/<ip>
+
+  Header:
+    x-apikey: <IhrKey>   (verschlüsselt per TLS/HTTPS)
+    accept:   application/json
+
+  Kein Request-Body, keine weiteren Felder, keine Gerätedaten.
+  Die VirusTotal-Datenschutzerklärung gilt für alle Abfragen.
+  Abgefragte Domains/IPs können von VirusTotal gespeichert werden.
+
+──────────────────────────────────────────────────────────────────────────────
+7.14 KEIN TELEMETRIE, KEINE UPDATES, KEINE DRITTANBIETER
+──────────────────────────────────────────────────────────────────────────────
+
+  Die Anwendung kommuniziert ausschließlich mit www.virustotal.com.
+  Es gibt keinen Update-Server, keine Fehlerberichterstattung,
+  keine Nutzungsstatistiken und keine weiteren Netzwerkverbindungen.
+  Dies wird technisch durch die Netzwerk-Allowlist (7.1) durchgesetzt.
+
+
+================================================================================
+8. RATE-LIMIT UND LAUFZEIT
+================================================================================
+
+  VirusTotal beschränkt kostenlose Accounts auf 4 Anfragen/Minute.
+  Die Anwendung hält dieses Limit automatisch ein.
+
+  Wartezeit zwischen Anfragen:
+      4 req/min → 15 Sekunden Pause
+     10 req/min →  6 Sekunden Pause
+    500 req/min → keine spürbare Pause (Premium-Account)
+
+  Geschätzte Laufzeit (kostenloser Account, 4 req/min):
+     10 Einträge →  ~2,5 Minuten
+     50 Einträge → ~12,5 Minuten
+    100 Einträge →  ~25 Minuten
+
+  Tipp: Filtern Sie Ihre Eingabedatei vorab auf relevante Einträge,
+  um die Laufzeit zu verkürzen. Die Extraktions-Info-Box zeigt die
+  genaue Anzahl vor dem Scan-Start.
+
+  Bei HTTP 429 (Rate-Limit überschritten):
+  Die Anwendung wartet automatisch 60 Sekunden und wiederholt die Anfrage.
+
+
+================================================================================
+9. ERGEBNISSE VERSTEHEN
+================================================================================
+
+  VERDICT       Bedeutung
+  ──────────────────────────────────────────────────────────────────────────
+  MALICIOUS     Mindestens 1 Engine stuft das Ziel als bösartig ein.
+                Hohes Risiko – sofortige Untersuchung empfohlen.
+
+  SUSPICIOUS    Kein "malicious", aber mind. 1 Engine meldet "suspicious".
+                Mittleres Risiko – genauere Prüfung empfohlen.
+
+  CLEAN         Alle antwortenden Engines melden "harmless" oder "undetected".
+                Kein bekanntes Risiko zum Analysezeitpunkt.
+
+  ERROR         Die Abfrage konnte nicht abgeschlossen werden.
+    NOT_FOUND   – Ziel nicht in VirusTotal-Datenbank
+    INVALID_KEY – API-Key ungültig oder abgelaufen
+    RATE_LIMIT  – Anfragelimit überschritten (automatischer Retry)
+    HTTP_xxx    – Temporärer API-Fehler
+
+  Detaildialog (Doppelklick auf eine Tabellenzeile):
+    registrar       Registrar des Domainnamens
+    registriert_am  Datum der Domain-Registrierung
+    läuft_ab        Ablaufdatum der Domain-Registrierung
+    nameserver      Zugewiesene Nameserver
+    ip_v4           IPv4-Adressen aus DNS (A-Records)
+    ip_v6           IPv6-Adressen aus DNS (AAAA-Records)
+    mx_record       Mail-Server (MX-Records)
+    ssl_aussteller  Aussteller des SSL-Zertifikats
+    ssl_gültig_von  Gültigkeitsbeginn des Zertifikats
+    ssl_gültig_bis  Ablauf des Zertifikats
+    asn             Autonomes System (nur bei IP-Abfragen)
+    land            Herkunftsland der IP-Adresse
+
+
+================================================================================
+10. EXPORT (CSV UND PDF)
+================================================================================
+
+  CSV-Export:
+    • UTF-8 mit BOM (direkt in Excel öffenbar)
+    • Kommentar-Header mit Dateiname, SHA-256 und Zeitstempel
+    • Optional: AES-256-verschlüsselte ZIP-Datei (pyzipper)
+    • Alle Felder: target, type, verdict, abgefragt_am, letzte_analyse,
+      malicious, suspicious, harmless, undetected, engines_gesamt,
+      registrar, registriert_am, läuft_ab, nameserver, ip_v4, ip_v6,
+      mx_record, ssl_aussteller, ssl_gültig_von, ssl_gültig_bis,
+      asn, land, error
+
+  PDF-Export:
+    • Verinox Forensik Deckblatt mit Metadaten und SHA-256
+    • Zusammenfassung (Anzahl je Verdict)
+    • Haupttabelle mit Farbkodierung: rot / orange / grün
+    • Optional: Passwortschutz (pypdf, Standard-PDF-Verschlüsselung)
+    • Format: A4 Querformat
+
+
+================================================================================
+11. FEHLERBEHEBUNG
+================================================================================
+
+Problem: "ModuleNotFoundError: No module named 'tkinter'"
+Lösung:  sudo apt-get install python3-tk  (Linux/Ubuntu)
+         Auf macOS und Windows ist tkinter standardmäßig vorhanden.
+
+Problem: "ModuleNotFoundError: No module named 'openpyxl'"
+Lösung:  pip install openpyxl
+
+Problem: "ModuleNotFoundError: No module named 'reportlab'"
+Lösung:  pip install reportlab
+
+Problem: "ModuleNotFoundError: No module named 'pyzipper'"
+Lösung:  pip install pyzipper
+         CSV-Verschlüsselung ist dann verfügbar. Ohne pyzipper wird
+         CSV unverschlüsselt gespeichert (mit Hinweis).
+
+Problem: "ModuleNotFoundError: No module named 'pypdf'"
+Lösung:  pip install pypdf
+         PDF-Passwortschutz ist dann verfügbar. Ohne pypdf wird
+         PDF ohne Verschlüsselung gespeichert.
+
+Problem: API-Key ungültig (INVALID_KEY)
+Lösung:  Key auf virustotal.com → Profil überprüfen.
+         Key im Feld löschen, neu einfügen und Scan starten.
+
+Problem: Zertifikat-Warnung beim Start
+Lösung:  Prüfen Sie ob ein Unternehmens-Proxy aktiv ist (Abschnitt 7.4).
+         Wenn Sie dem Zertifikat vertrauen: "Akzeptieren & speichern" klicken.
+         Im Zweifel: IT-Sicherheit kontaktieren.
+
+Problem: Proxy-Warnung erscheint unerwünscht
+Lösung:  Wenn der Proxy bekannt und vertrauenswürdig ist, einfach
+         "Fortfahren" klicken. Die Warnung dient nur zur Information.
+
+Problem: Auditlog meldet "Hash-Chain unterbrochen"
+Lösung:  Die Datei ~/.vt_analyzer_audit.jsonl wurde manuell bearbeitet
+         oder ist beschädigt. Zur Sicherheit umbenennen und neu beginnen.
+
+Problem: Keine Ergebnisse in der Extraktions-Info-Box (0 Einträge)
+Lösung:  Prüfen Sie ob die Datei öffentliche IPs oder vollständige
+         Domains enthält. Private IPs werden automatisch ausgeschlossen.
+         Stellen Sie sicher, dass die richtigen Checkboxen aktiv sind.
+
+Problem: Rate-Limit-Fehler trotz korrekter Einstellungen
+Lösung:  Rate-Limit auf 4 reduzieren (kostenloser Account).
+         Die Anwendung wartet bei HTTP 429 automatisch 60 s.
+
+Problem: keyring-Fehler beim Starten
+Lösung:  Die Anwendung fällt automatisch auf ~/.vt_analyzer_key.json zurück.
+         Optional: pip install keyring  (ggf. + pip install secretstorage)
+
+
+================================================================================
+12. ERWEITERUNG DER ANWENDUNG
+================================================================================
+
+Die Anwendung ist modular aufgebaut. Alle Kernmodule sind GUI-unabhängig
+und können auch per CLI genutzt werden.
+
+Neue API-Quelle hinzufügen:
+  1. Neue Datei in core/ anlegen (z. B. core/abuseipdb.py)
+  2. Neue Domain in security/secure_session.py → ALLOWED_HOSTS eintragen
+  3. Scanner in core/scanner.py erweitern
+  4. Ergebnis-Dict um neue Felder ergänzen
+
+Neuer Tab in der GUI:
+  1. Panel-Klasse in gui/panels/ anlegen
+  2. In gui/app.py importieren und als Tab registrieren
+
+Weiteres Dateiformat:
+  1. In core/extractor.py die Funktion _file_to_text() erweitern
+
+Neuer Export-Typ:
+  1. Neue Datei in export/ anlegen
+  2. Export-Button in gui/panels/results_panel.py hinzufügen
+  3. Callback in gui/app.py verdrahten
+
+Empfohlene Erweiterungen:
+  • AbuseIPDB-Integration für zusätzliche IP-Reputation
+  • Shodan-Lookup für offene Ports und Dienste
+  • WHOIS-Daten via python-whois
+  • Excel-Export mit farbkodierten Zellen (openpyxl)
+  • Auditlog-Viewer als eigener Tab
+  • Batch-History mit gespeicherten Scan-Sessions
+  • Dark-Mode-Umschalter
+
+
+================================================================================
+  Ende des Handbuchs
+  Verinox Forensik – Forensik Tool  |  Version 2.0
+  Für Fragen oder Erweiterungswünsche: Entwicklungsteam kontaktieren
+================================================================================
